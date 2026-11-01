@@ -2,8 +2,8 @@
 # a page at a time, asked of Home Assistant through the app (music_assistant.get_library). A tap on a row plays it on
 # the tile's Music Assistant player. No helpers or scripts in Home Assistant. docs/MANIFEST.md has every field.
 id: ma_library
-version: 0.1.0
-api: "0.10"
+version: 0.2.0
+api: "0.12"
 icon: playlist-music
 maintainer: dionrowney
 license: MIT
@@ -25,8 +25,8 @@ tiles:
     name: tile_name
     icon: playlist-music
     sizes: { min: 1x2, max: 4x4 }
-    # Three tabs, up to eight rows of a name and a uri, the page keys and a note.
-    memory: 1800
+    # Three tabs, up to twelve rows of a name and a uri, the page keys and a note.
+    memory: 2600
     # The player that plays a row: a Music Assistant player (only those carry `mass_player_type`).
     domains: [media_player]
     has_attributes: [mass_player_type]

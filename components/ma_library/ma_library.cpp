@@ -13,8 +13,9 @@ namespace ui = tessera::ui;
 
 static const char *const ASK = "call_service:music_assistant.get_library";
 static const char *const PLAY = "music_assistant.play_media";
-// The most rows a page holds: eight names and uris stay well inside the 3 KB an answer may be.
-static constexpr int MAX_ROWS = 8;
+// The most rows a page holds. An answer is at most about 3 KB and the app shortens a longer list from the end, so a page
+// is asked in as many answers as it takes (LibraryTile::answer).
+static constexpr int MAX_ROWS = 12;
 // An answer that has not come after this long is taken as failed; a tap asks again.
 static constexpr uint32_t ANSWER_MS = 15000;
 // How long a tapped row says it is starting.
@@ -80,6 +81,8 @@ class LibraryTile : public tessera::Tile {
     if (large_rows < 3 && rows_room / (ui::line_height(Font::BODY) + pad) > large_rows) row_font = Font::BODY;
     row_h_ = ui::line_height(row_font) + pad;
     rows_ = std::max(1, std::min(MAX_ROWS, rows_room / row_h_));
+    // The room left under the last row goes to the rows, so the list fills the tile whatever its size.
+    row_h_ = std::max(row_h_, std::min(rows_room / rows_, row_h_ * 3 / 2));
     for (int i = 0; i < rows_; ++i) {
       row_[i] = ui::label(c.parent, row_font, theme::INK);
       lv_obj_set_width(row_[i], width_);
@@ -127,7 +130,7 @@ class LibraryTile : public tessera::Tile {
     // No app yet when the tile came on the glass: ask again every few seconds until the request goes out.
     if (state_ == State::UNSENT && now - asked_at_ >= 5000) ask();
     if (state_ == State::ASKING && now - asked_at_ >= ANSWER_MS) {
-      state_ = State::FAILED;
+      give_up();
       paint();
     }
     if (starting_ >= 0 && now - started_at_ >= STARTING_MS) {
@@ -163,17 +166,19 @@ class LibraryTile : public tessera::Tile {
         offset_ = std::max(0, offset_ - rows_);
         ask();
       } else if (p.x >= width_ - key_w_ - gap_ && more_) {
-        offset_ += count_;
+        offset_ += fetched_;
         ask();
       }
       return paint();
     }
     // Nothing to play: a tap asks again after a failure.
-    if (state_ == State::FAILED || state_ == State::UNSENT) {
-      ask();
-      return paint();
+    if (count_ == 0) {
+      if (state_ == State::FAILED || state_ == State::UNSENT) {
+        ask();
+        paint();
+      }
+      return;
     }
-    if (state_ != State::SHOWN) return;
     const int row = (p.y - rows_top_) / row_h_;
     if (row < 0 || row >= count_ || player_.empty()) return;
     JsonDocument d;
@@ -190,27 +195,34 @@ class LibraryTile : public tessera::Tile {
   void answer(JsonObjectConst message) {
     if (state_ != State::ASKING || (message["re"] | 0u) != asked_) return;
     if (!(message["ok"] | false)) {
-      state_ = State::FAILED;
+      give_up();
       return paint();
     }
-    count_ = 0;
+    int got = 0;
     for (JsonObjectConst item : message["result"]["items"].as<JsonArrayConst>()) {
       if (count_ >= rows_) break;
+      ++got;
+      ++fetched_;
       const char *uri = item["uri"] | "";
       if (!uri[0]) continue;
       snprintf(items_[count_].name, sizeof(items_[count_].name), "%s", item["name"] | uri);
       snprintf(items_[count_].uri, sizeof(items_[count_].uri), "%s", uri);
       ++count_;
     }
-    // A full page may have one after it; a short one is the last.
-    more_ = count_ >= rows_;
-    // Paged past the end (the library shrank): back to the first page.
-    if (count_ == 0 && offset_ > 0) {
+    if (count_ >= rows_) {
+      // A full page may have one after it.
+      more_ = true;
+      state_ = State::SHOWN;
+    } else if (got > 0) {
+      // Short: the list's end, or an answer the app shortened to fit. Only the next answer can tell, so ask on.
+      request();
+    } else if (count_ == 0 && offset_ > 0) {
+      // Paged past the end (the library shrank): back to the first page.
       offset_ = 0;
       ask();
-      return paint();
+    } else {
+      state_ = State::SHOWN;
     }
-    state_ = State::SHOWN;
     paint();
   }
 
@@ -220,22 +232,39 @@ class LibraryTile : public tessera::Tile {
   // Ask for the page at offset_ of the list of the tab that is chosen.
   void ask() {
     count_ = 0;
+    fetched_ = 0;
     more_ = false;
     starting_ = -1;
-    asked_at_ = esphome::millis();
     if (!entry_[0]) {
+      asked_at_ = esphome::millis();
       state_ = State::FAILED;
       return;
     }
+    request();
+  }
+
+  // Ask for what the page still lacks.
+  void request() {
+    asked_at_ = esphome::millis();
     JsonDocument request;
     request["ask"] = ASK;
     request["data"]["config_entry_id"] = entry_;
     request["data"]["media_type"] = KINDS[kind_];
-    request["data"]["limit"] = rows_;
-    request["data"]["offset"] = offset_;
+    request["data"]["limit"] = rows_ - count_;
+    request["data"]["offset"] = offset_ + fetched_;
     request["data"]["order_by"] = "name";
     asked_ = tessera::send(plugin_, request.as<JsonObjectConst>());
     state_ = asked_ ? State::ASKING : State::UNSENT;
+  }
+
+  // No answer. Rows that came stay, and the key goes on from the first row that did not.
+  void give_up() {
+    if (count_ > 0) {
+      more_ = true;
+      state_ = State::SHOWN;
+    } else {
+      state_ = State::FAILED;
+    }
   }
 
   void paint() {
@@ -250,8 +279,7 @@ class LibraryTile : public tessera::Tile {
     if (player_.empty()) note = "no_player";
     else if (!entry_[0]) note = "no_entry";
     else if (state_ == State::FAILED) note = "failed";
-    else if (state_ != State::SHOWN) note = "waiting";
-    else if (count_ == 0) note = "none";
+    else if (count_ == 0) note = state_ == State::SHOWN ? "none" : "waiting";
     ui::set_text(note_, note[0] ? plugin_->text(note) : "");
     const bool rows = !note[0];
     for (int i = 0; i < rows_; ++i) {
@@ -288,7 +316,7 @@ class LibraryTile : public tessera::Tile {
   MaLibrary *plugin_;
   tessera::Text player_;
   char entry_[72] = {};
-  int tabs_ = KIND_COUNT, kind_ = 0, offset_ = 0, count_ = 0, rows_ = 1, starting_ = -1;
+  int tabs_ = KIND_COUNT, kind_ = 0, offset_ = 0, count_ = 0, fetched_ = 0, rows_ = 1, starting_ = -1;
   bool more_ = false, unavailable_ = false;
   State state_ = State::UNSENT;
   uint32_t asked_ = 0, asked_at_ = 0, started_at_ = 0;

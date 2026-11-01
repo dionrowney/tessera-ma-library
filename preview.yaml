@@ -5,7 +5,7 @@ tiles:
     name: Music library
     entity: media_player.office
     options: { config_entry: 01JABCDEFGHJKMNPQRSTVWXYZ0, start: playlist }
-    sizes: [2x2, 3x2, 4x3, 2x3, 1x2, 1x3]
+    sizes: [3x3, 2x2, 3x2, 4x3, 2x3, 1x2, 1x3]
   - tile: library
     name: No player yet
     options: { config_entry: 01JABCDEFGHJKMNPQRSTVWXYZ0 }
@@ -18,7 +18,7 @@ states:
 
 commands:
   "call_service:music_assistant.get_library":
-    limit: 8
+    limit: 12
     offset: 0
     order_by: name
     media_type: playlist
@@ -31,3 +31,7 @@ commands:
       - { media_type: playlist, uri: "library://playlist/6", name: Garden Party }
       - { media_type: playlist, uri: "library://playlist/7", name: Long Drive Home }
       - { media_type: playlist, uri: "library://playlist/8", name: Morning Run }
+      - { media_type: playlist, uri: "library://playlist/9", name: Road Trip Classics }
+      - { media_type: playlist, uri: "library://playlist/10", name: Saturday Cleanup }
+      - { media_type: playlist, uri: "library://playlist/11", name: Sunday Morning }
+      - { media_type: playlist, uri: "library://playlist/12", name: Winding Down }
