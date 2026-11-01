@@ -1,0 +1,33 @@
+# What tools/preview.py shows (docs/PREVIEW.md): a Music Assistant player and a page of playlists, as
+# music_assistant.get_library answers (made-up names, no real library's).
+tiles:
+  - tile: library
+    name: Music library
+    entity: media_player.office
+    options: { config_entry: 01JABCDEFGHJKMNPQRSTVWXYZ0, start: playlist }
+    sizes: [2x2, 3x2, 4x3, 2x3, 1x2, 1x3]
+  - tile: library
+    name: No player yet
+    options: { config_entry: 01JABCDEFGHJKMNPQRSTVWXYZ0 }
+    sizes: [2x2]
+
+states:
+  media_player.office:
+    state: idle
+    attributes: { friendly_name: Office, mass_player_type: player }
+
+commands:
+  "call_service:music_assistant.get_library":
+    limit: 8
+    offset: 0
+    order_by: name
+    media_type: playlist
+    items:
+      - { media_type: playlist, uri: "library://playlist/1", name: Afternoon Focus }
+      - { media_type: playlist, uri: "library://playlist/2", name: Basement Workshop }
+      - { media_type: playlist, uri: "library://playlist/3", name: Coffee and Rain }
+      - { media_type: playlist, uri: "library://playlist/4", name: Deep Work Ambient }
+      - { media_type: playlist, uri: "library://playlist/5", name: Friday Night Mix }
+      - { media_type: playlist, uri: "library://playlist/6", name: Garden Party }
+      - { media_type: playlist, uri: "library://playlist/7", name: Long Drive Home }
+      - { media_type: playlist, uri: "library://playlist/8", name: Morning Run }

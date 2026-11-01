@@ -1,0 +1,28 @@
+{
+  "_meta": { "name": "English" },
+  "screen": {
+    "playlists": "Playlists",
+    "artists": "Artists",
+    "radio": "Radio",
+    "page": "Page {n}",
+    "waiting": "Asking Music Assistant",
+    "failed": "Music Assistant did not answer. Tap to try again.",
+    "none": "Nothing here yet",
+    "no_player": "Choose a Music Assistant player for this tile in the editor.",
+    "no_entry": "Fill in the Music Assistant config entry id in the editor.",
+    "starting": "Starting"
+  },
+  "app": {
+    "name": "Music Assistant library",
+    "summary": "Your Music Assistant playlists, artists and radio stations as a list; tap one to play it.",
+    "tile_name": "Music library",
+    "tile_example": "Your playlists, artists and radio stations",
+    "config_entry": "Music Assistant config entry id",
+    "config_entry_hint": "In Home Assistant open Settings > Devices & services > Music Assistant; the id is the part after config_entry= in the address bar.",
+    "start": "Opens on",
+    "start_hint": "The list the tile shows first.",
+    "playlists": "Playlists",
+    "artists": "Artists",
+    "radio": "Radio stations"
+  }
+}

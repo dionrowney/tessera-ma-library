@@ -1,0 +1,38 @@
+# Music Assistant library: the playlists, artists and radio stations of Music Assistant's library as a list on a tile,
+# a page at a time, asked of Home Assistant through the app (music_assistant.get_library). A tap on a row plays it on
+# the tile's Music Assistant player. No helpers or scripts in Home Assistant. docs/MANIFEST.md has every field.
+id: ma_library
+version: 0.1.0
+api: "0.10"
+icon: playlist-music
+maintainer: dionrowney
+license: MIT
+stage: beta
+topics: [media]
+requires:
+  esphome: 2026.6.2
+boards: any
+flash_kb: 10
+
+permissions:
+  # A page of the library: the names and uris of a few playlists, artists or radio stations.
+  ha_commands: ["call_service:music_assistant.get_library"]
+  # The row tapped, played on the tile's player.
+  home_assistant_actions: [music_assistant.play_media]
+
+tiles:
+  - id: library
+    name: tile_name
+    icon: playlist-music
+    sizes: { min: 1x2, max: 4x4 }
+    # Three tabs, up to eight rows of a name and a uri, the page keys and a note.
+    memory: 1800
+    # The player that plays a row: a Music Assistant player (only those carry `mass_player_type`).
+    domains: [media_player]
+    has_attributes: [mass_player_type]
+    example: tile_example
+    options:
+      - { id: config_entry, kind: text, label: config_entry, hint: config_entry_hint }
+      - { id: start, kind: choice, label: start, hint: start_hint, default: playlist,
+          choices: [{ value: playlist, label: playlists }, { value: artist, label: artists },
+                    { value: radio, label: radio }] }
