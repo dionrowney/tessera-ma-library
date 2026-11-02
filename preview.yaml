@@ -2,14 +2,27 @@
 # music_assistant.get_library answers (made-up names, no real library's).
 tiles:
   - tile: library
-    name: Music library
+    name: Playlists
     entity: media_player.office
-    options: { config_entry: 01JABCDEFGHJKMNPQRSTVWXYZ0, start: playlist }
-    sizes: [3x3, 2x2, 3x2, 4x3, 2x3, 1x2, 1x3]
+    options: { list: playlist }
+    sizes: [1x1, 2x1]
   - tile: library
-    name: No player yet
-    options: { config_entry: 01JABCDEFGHJKMNPQRSTVWXYZ0 }
-    sizes: [2x2]
+    name: Artists
+    entity: media_player.office
+    options: { list: artist }
+    sizes: [1x1]
+  - tile: library
+    name: Radio
+    entity: media_player.office
+    options: { list: radio }
+    sizes: [1x1]
+  - tile: library
+    name: Podcasts
+    entity: media_player.office
+    options: { list: podcast }
+    sizes: [1x1]
+  - tile: library
+    sizes: [1x1]
 
 states:
   media_player.office:

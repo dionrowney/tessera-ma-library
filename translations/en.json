@@ -4,25 +4,26 @@
     "playlists": "Playlists",
     "artists": "Artists",
     "radio": "Radio",
+    "podcasts": "Podcasts",
     "page": "Page {n}",
     "waiting": "Asking Music Assistant",
     "failed": "Music Assistant did not answer. Tap to try again.",
     "none": "Nothing here yet",
     "no_player": "Choose a Music Assistant player for this tile in the editor.",
-    "no_entry": "Fill in the Music Assistant config entry id in the editor.",
-    "starting": "Starting"
+    "no_entry": "Fill in the Music Assistant config entry id in this plugin's details on the screen's Plugins tab, then Save and build."
   },
   "app": {
     "name": "Music Assistant library",
-    "summary": "Your Music Assistant playlists, artists and radio stations as a list; tap one to play it.",
-    "tile_name": "Music library",
-    "tile_example": "Your playlists, artists and radio stations",
+    "summary": "Keys for your Music Assistant playlists, artists, radio and podcasts; pick from a full-screen list to play.",
+    "tile_name": "Music list",
+    "tile_example": "A key that opens your playlists, artists, radio stations or podcasts",
     "config_entry": "Music Assistant config entry id",
-    "config_entry_hint": "In Home Assistant open Settings > Devices & services > Music Assistant; the id is the part after config_entry= in the address bar.",
-    "start": "Opens on",
-    "start_hint": "The list the tile shows first.",
+    "config_entry_hint": "In Home Assistant open Developer Tools > Template and enter {{ config_entry_id('media_player.your_player') }} with one of your Music Assistant players.",
+    "list": "List",
+    "list_hint": "What the key opens. Name the tile to give the key a title of your own.",
     "playlists": "Playlists",
     "artists": "Artists",
-    "radio": "Radio stations"
+    "radio": "Radio stations",
+    "podcasts": "Podcasts"
   }
 }

@@ -1,9 +1,10 @@
-# Music Assistant library: the playlists, artists and radio stations of Music Assistant's library as a list on a tile,
-# a page at a time, asked of Home Assistant through the app (music_assistant.get_library). A tap on a row plays it on
-# the tile's Music Assistant player. No helpers or scripts in Home Assistant. docs/MANIFEST.md has every field.
+# Music Assistant library: keys that open a list of Music Assistant's library (playlists, artists, radio stations,
+# podcasts) in a popup over the glass, a page at a time, asked of Home Assistant through the app
+# (music_assistant.get_library). A tap on a row plays it on the tile's Music Assistant player. No helpers or scripts in
+# Home Assistant. docs/MANIFEST.md has every field.
 id: ma_library
-version: 0.2.0
-api: "0.12"
+version: 1.0.0
+api: "0.18"
 icon: playlist-music
 maintainer: dionrowney
 license: MIT
@@ -20,19 +21,22 @@ permissions:
   # The row tapped, played on the tile's player.
   home_assistant_actions: [music_assistant.play_media]
 
+# Asked when the plugin is added to a screen, and built in: one id for every key on that screen.
+inputs:
+  - { id: config_entry_id, kind: text, scope: screen, label: config_entry, hint: config_entry_hint }
+
 tiles:
   - id: library
     name: tile_name
     icon: playlist-music
-    sizes: { min: 1x2, max: 4x4 }
-    # Three tabs, up to twelve rows of a name and a uri, the page keys and a note.
-    memory: 2600
+    sizes: { min: 1x1, max: 3x2 }
+    # A title. The list is a popup, made only while it shows.
+    memory: 300
     # The player that plays a row: a Music Assistant player (only those carry `mass_player_type`).
     domains: [media_player]
     has_attributes: [mass_player_type]
     example: tile_example
     options:
-      - { id: config_entry, kind: text, label: config_entry, hint: config_entry_hint }
-      - { id: start, kind: choice, label: start, hint: start_hint, default: playlist,
+      - { id: list, kind: choice, label: list, hint: list_hint, default: playlist,
           choices: [{ value: playlist, label: playlists }, { value: artist, label: artists },
-                    { value: radio, label: radio }] }
+                    { value: radio, label: radio }, { value: podcast, label: podcasts }] }
