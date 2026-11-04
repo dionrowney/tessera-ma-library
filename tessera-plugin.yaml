@@ -3,7 +3,7 @@
 # (music_assistant.get_library). A tap on a row plays it on the tile's Music Assistant player. No helpers or scripts in
 # Home Assistant. docs/MANIFEST.md has every field.
 id: ma_library
-version: 1.1.0
+version: 1.2.0
 api: "0.18"
 icon: playlist-music
 maintainer: dionrowney

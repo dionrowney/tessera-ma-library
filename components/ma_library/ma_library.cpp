@@ -57,7 +57,8 @@ static lv_obj_t *key_block(lv_obj_t *parent, int w, int h) {
   return o;
 }
 
-// The list, over the whole glass: its title beside the close key, a page of names, and a row of keys at the bottom. A
+// The list, over the whole glass: its title and the favorites key beside the close key, a page of names, and a row of
+// keys at the bottom. It opens on the favorites; the key turns that filter off and on. A
 // tap on a name plays it on the tile's player, marks the row yellow and closes the popup. Each page is asked of Home Assistant through the app
 // (music_assistant.get_library), as many rows as fit.
 class ListPopup : public tessera::Popup {
@@ -69,10 +70,22 @@ class ListPopup : public tessera::Popup {
     gap_ = ui::px(6);
     bar_h_ = ui::line_height(Font::BODY) + ui::px(14);
 
-    // The first row: the title, leaving the corner to the close key.
+    // The first row: the title and the favorites key, leaving the corner to the close key.
     const int head = std::max(c.key, ui::line_height(Font::TITLE));
+    const char *favorites = plugin_->text("favorites");
+    const int chip_h = bar_h_;
+    chip_w_ = ui::text_width(favorites, Font::BODY) + ui::px(20);
+    chip_x_ = c.width - c.corner - chip_w_;
+    chip_ = key_block(c.parent, chip_w_, chip_h);
+    lv_obj_set_pos(chip_, chip_x_, (head - chip_h) / 2);
+    chip_text_ = ui::label(chip_, Font::BODY, theme::INK);
+    lv_obj_set_width(chip_text_, chip_w_);
+    lv_obj_set_style_text_align(chip_text_, LV_TEXT_ALIGN_CENTER, 0);
+    ui::set_text(chip_text_, favorites);
+    lv_obj_center(chip_text_);
+
     title_ = ui::label(c.parent, Font::TITLE, theme::INK);
-    lv_obj_set_width(title_, c.width - c.corner);
+    lv_obj_set_width(title_, std::max(1, chip_x_ - gap_));
     lv_obj_set_pos(title_, 0, (head - ui::line_height(Font::TITLE)) / 2);
     ui::set_text(title_, request_.title);
 
@@ -158,13 +171,24 @@ class ListPopup : public tessera::Popup {
     for (int i = 0; i < 2; ++i) ui::set_color(key_text_[i], theme::INK);
     ui::set_color(page_, theme::MUTED);
     ui::set_color(note_, theme::MUTED);
+    paint_chip();
   }
 
   void on_tap() override {
     // Chosen: it closes in a moment.
     if (picked_ >= 0) return;
     const tessera::Point p = tessera::tap_point();
-    if (p.x < 0 || p.y < rows_top_) return;
+    if (p.x < 0) return;
+    if (p.y < rows_top_) {
+      // The favorites key, with a little room around it. The filter changes the list, so back to its first page.
+      if (can_ask() && p.x >= chip_x_ - gap_ && p.x < chip_x_ + chip_w_ + gap_) {
+        favorites_ = !favorites_;
+        offset_ = 0;
+        ask();
+        paint();
+      }
+      return;
+    }
     // The keys: back or on a page.
     if (p.y >= keys_y_ - gap_ / 2) {
       if (p.x < key_w_ + gap_ && offset_ > 0) {
@@ -241,12 +265,14 @@ class ListPopup : public tessera::Popup {
     ui::set_color(row_[row], theme::PRESET_INK_DARK);
   }
 
+  bool can_ask() const { return request_.player[0] && plugin_->config_entry()[0]; }
+
   // Ask for the page at offset_.
   void ask() {
     count_ = 0;
     fetched_ = 0;
     more_ = false;
-    if (!request_.player[0] || !plugin_->config_entry()[0]) {
+    if (!can_ask()) {
       state_ = State::FAILED;
       return;
     }
@@ -263,6 +289,8 @@ class ListPopup : public tessera::Popup {
     request["data"]["limit"] = rows_ - count_;
     request["data"]["offset"] = offset_ + fetched_;
     request["data"]["order_by"] = "name";
+    // Left out for the whole library: false would ask for what is not a favorite.
+    if (favorites_) request["data"]["favorite"] = true;
     asked_ = tessera::send(plugin_, request.as<JsonObjectConst>());
     state_ = asked_ ? State::ASKING : State::UNSENT;
   }
@@ -283,7 +311,7 @@ class ListPopup : public tessera::Popup {
     if (!request_.player[0]) note = "no_player";
     else if (!plugin_->config_entry()[0]) note = "no_entry";
     else if (state_ == State::FAILED) note = "failed";
-    else if (count_ == 0) note = state_ == State::SHOWN ? "none" : "waiting";
+    else if (count_ == 0) note = state_ != State::SHOWN ? "waiting" : favorites_ ? "no_favorites" : "none";
     ui::set_text(note_, note[0] ? plugin_->text(note) : "");
     const bool rows = !note[0];
     for (int i = 0; i < rows_; ++i) ui::set_text(row_[i], rows && i < count_ ? items_[i].name : "");
@@ -291,6 +319,15 @@ class ListPopup : public tessera::Popup {
     set_shown(0, rows && offset_ > 0);
     set_shown(1, rows && more_);
     ui::set_text(page_, rows ? tessera::format(plugin_->text("page"), offset_ / std::max(1, rows_) + 1) : "");
+    paint_chip();
+  }
+
+  // Lit while the list shows only favorites. Without a player or an id there is no list to filter.
+  void paint_chip() {
+    ui::set_fill(chip_, favorites_ ? tessera::Tone::ACCENT : tessera::Tone::NORMAL, theme::TRACK);
+    ui::set_color(chip_text_, favorites_ ? theme::ON_ACCENT : theme::INK);
+    if (can_ask()) lv_obj_clear_flag(chip_, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(chip_, LV_OBJ_FLAG_HIDDEN);
   }
 
   void set_shown(int key, bool shown) {
@@ -306,12 +343,12 @@ class ListPopup : public tessera::Popup {
   MaLibrary *plugin_;
   ListRequest request_;
   int offset_ = 0, count_ = 0, fetched_ = 0, rows_ = 1, picked_ = -1;
-  bool more_ = false;
+  bool more_ = false, favorites_ = true;
   State state_ = State::UNSENT;
   uint32_t asked_ = 0, asked_at_ = 0, picked_at_ = 0;
-  int width_ = 0, gap_ = 0, bar_h_ = 0, row_h_ = 0, rows_top_ = 0, keys_y_ = 0, key_w_ = 0;
+  int width_ = 0, gap_ = 0, bar_h_ = 0, row_h_ = 0, rows_top_ = 0, keys_y_ = 0, key_w_ = 0, chip_x_ = 0, chip_w_ = 0;
   Item items_[MAX_ROWS];
-  lv_obj_t *title_{}, *mark_{}, *row_[MAX_ROWS]{}, *key_[2]{}, *key_text_[2]{}, *page_{}, *note_{};
+  lv_obj_t *title_{}, *mark_{}, *row_[MAX_ROWS]{}, *key_[2]{}, *key_text_[2]{}, *page_{}, *note_{}, *chip_{}, *chip_text_{};
 };
 
 // The tile: a key with its title, the name it got in the editor or else the word of its list. A tap opens the list.

@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.0
+- Lists open on your Music Assistant favorites. The **Favorites** key at the top of the list turns the filter off to show everything, and on again.
+
 ## 1.1.0
 - The name you tap turns yellow for a moment before the list closes, so you can see what you chose.
 

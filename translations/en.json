@@ -9,6 +9,8 @@
     "waiting": "Asking Music Assistant",
     "failed": "Music Assistant did not answer. Tap to try again.",
     "none": "Nothing here yet",
+    "favorites": "Favorites",
+    "no_favorites": "No favorites here yet. Tap Favorites to show everything.",
     "no_player": "Choose a Music Assistant player for this tile in the editor.",
     "no_entry": "Fill in the Music Assistant config entry id in this plugin's details on the screen's Plugins tab, then Save and build."
   },
