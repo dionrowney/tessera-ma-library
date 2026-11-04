@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.0
+- The name you tap turns yellow for a moment before the list closes, so you can see what you chose.
+
 ## 1.0.0
 - The tile is now a key with a title of your own. A tap opens a full-screen list to choose from; a tap on a name plays it.
 - Each key opens one list: playlists, artists, radio stations or podcasts. Choose it in the tile's **List** option, which replaces **Opens on**: set it again on a tile you already placed.

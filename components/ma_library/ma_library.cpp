@@ -17,6 +17,8 @@ static const char *const PLAY = "music_assistant.play_media";
 static constexpr int MAX_ROWS = 12;
 // An answer that has not come after this long is taken as failed; a tap asks again.
 static constexpr uint32_t ANSWER_MS = 15000;
+// How long a chosen row stays yellow before the list closes. The popup hears the time every 250 ms, so 350 to 600 ms.
+static constexpr uint32_t PICKED_MS = 350;
 
 // The lists a tile can open: Music Assistant's media_type and the screen's word for it. A new list is a line here, a
 // choice of the option `list` in the manifest, and its word in translations/en.json (parts `screen` and `app`).
@@ -56,7 +58,7 @@ static lv_obj_t *key_block(lv_obj_t *parent, int w, int h) {
 }
 
 // The list, over the whole glass: its title beside the close key, a page of names, and a row of keys at the bottom. A
-// tap on a name plays it on the tile's player and closes the popup. Each page is asked of Home Assistant through the app
+// tap on a name plays it on the tile's player, marks the row yellow and closes the popup. Each page is asked of Home Assistant through the app
 // (music_assistant.get_library), as many rows as fit.
 class ListPopup : public tessera::Popup {
  public:
@@ -82,6 +84,13 @@ class ListPopup : public tessera::Popup {
     row_h_ = line + ui::px(ui::large() ? 14 : 8);
     rows_ = std::max(1, std::min(MAX_ROWS, rows_room / row_h_));
     row_h_ = std::max(row_h_, std::min(rows_room / rows_, row_h_ * 3 / 2));
+    // The mark behind a chosen row: made before the rows, so they lie over it, and a little wider than their words.
+    mark_ = ui::block(c.parent, theme::TRACK);
+    lv_obj_remove_flag(mark_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(mark_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(mark_, width_ + 2 * gap_, row_h_);
+    ui::set_fill(mark_, tessera::Tone::BUSY, theme::TRACK);
+    lv_obj_add_flag(mark_, LV_OBJ_FLAG_HIDDEN);
     for (int i = 0; i < rows_; ++i) {
       row_[i] = ui::label(c.parent, Font::BODY_LARGE, theme::INK);
       lv_obj_set_width(row_[i], width_);
@@ -121,7 +130,15 @@ class ListPopup : public tessera::Popup {
     paint();
   }
 
+  void on_interval(uint32_t now) override {
+    if (picked_ >= 0 && now - picked_at_ >= PICKED_MS) {
+      plugin_->forget_popup();
+      tessera::close_popup(plugin_);
+    }
+  }
+
   void on_tick(uint32_t) override {
+    if (picked_ >= 0) return;
     const uint32_t now = esphome::millis();
     // No connection to the app when it was asked: ask again every few seconds until the request goes out.
     if (state_ == State::UNSENT && now - asked_at_ >= 5000) {
@@ -136,13 +153,16 @@ class ListPopup : public tessera::Popup {
 
   void on_theme() override {
     ui::set_color(title_, theme::INK);
-    for (int i = 0; i < rows_; ++i) ui::set_color(row_[i], theme::INK);
+    for (int i = 0; i < rows_; ++i) ui::set_color(row_[i], i == picked_ ? theme::PRESET_INK_DARK : theme::INK);
+    ui::set_fill(mark_, tessera::Tone::BUSY, theme::TRACK);
     for (int i = 0; i < 2; ++i) ui::set_color(key_text_[i], theme::INK);
     ui::set_color(page_, theme::MUTED);
     ui::set_color(note_, theme::MUTED);
   }
 
   void on_tap() override {
+    // Chosen: it closes in a moment.
+    if (picked_ >= 0) return;
     const tessera::Point p = tessera::tap_point();
     if (p.x < 0 || p.y < rows_top_) return;
     // The keys: back or on a page.
@@ -169,17 +189,14 @@ class ListPopup : public tessera::Popup {
     JsonDocument d;
     d["media_id"] = items_[row].uri;
     d["media_type"] = KINDS[request_.kind].type;
-    if (tessera::action(PLAY, request_.player, d)) {
-      plugin_->forget_popup();
-      tessera::close_popup(plugin_);
-    }
+    if (tessera::action(PLAY, request_.player, d)) mark_row(row);
   }
 
   void on_dismiss() override { plugin_->forget_popup(); }
 
   // An answer of the app: {"re", "ok", "result": {"items": [{"name", "uri", ...}, ...]}}.
   void answer(JsonObjectConst message) {
-    if (state_ != State::ASKING || (message["re"] | 0u) != asked_) return;
+    if (picked_ >= 0 || state_ != State::ASKING || (message["re"] | 0u) != asked_) return;
     if (!(message["ok"] | false)) {
       give_up();
       return paint();
@@ -214,6 +231,15 @@ class ListPopup : public tessera::Popup {
 
  private:
   enum class State : uint8_t { UNSENT, ASKING, SHOWN, FAILED };
+
+  // A row was chosen: it turns yellow, with dark words in either look, until on_interval closes the list.
+  void mark_row(int row) {
+    picked_ = row;
+    picked_at_ = esphome::millis();
+    lv_obj_set_pos(mark_, -gap_, rows_top_ + row * row_h_);
+    lv_obj_clear_flag(mark_, LV_OBJ_FLAG_HIDDEN);
+    ui::set_color(row_[row], theme::PRESET_INK_DARK);
+  }
 
   // Ask for the page at offset_.
   void ask() {
@@ -279,13 +305,13 @@ class ListPopup : public tessera::Popup {
 
   MaLibrary *plugin_;
   ListRequest request_;
-  int offset_ = 0, count_ = 0, fetched_ = 0, rows_ = 1;
+  int offset_ = 0, count_ = 0, fetched_ = 0, rows_ = 1, picked_ = -1;
   bool more_ = false;
   State state_ = State::UNSENT;
-  uint32_t asked_ = 0, asked_at_ = 0;
+  uint32_t asked_ = 0, asked_at_ = 0, picked_at_ = 0;
   int width_ = 0, gap_ = 0, bar_h_ = 0, row_h_ = 0, rows_top_ = 0, keys_y_ = 0, key_w_ = 0;
   Item items_[MAX_ROWS];
-  lv_obj_t *title_{}, *row_[MAX_ROWS]{}, *key_[2]{}, *key_text_[2]{}, *page_{}, *note_{};
+  lv_obj_t *title_{}, *mark_{}, *row_[MAX_ROWS]{}, *key_[2]{}, *key_text_[2]{}, *page_{}, *note_{};
 };
 
 // The tile: a key with its title, the name it got in the editor or else the word of its list. A tap opens the list.
