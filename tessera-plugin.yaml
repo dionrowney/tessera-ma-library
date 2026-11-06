@@ -3,7 +3,7 @@
 # (music_assistant.get_library). A tap on a row plays it on the tile's Music Assistant player. No helpers or scripts in
 # Home Assistant. docs/MANIFEST.md has every field.
 id: ma_library
-version: 1.2.0
+version: 1.3.0
 api: "0.18"
 icon: playlist-music
 maintainer: dionrowney
@@ -38,5 +38,5 @@ tiles:
     example: tile_example
     options:
       - { id: list, kind: choice, label: list, hint: list_hint, default: playlist,
-          choices: [{ value: playlist, label: playlists }, { value: artist, label: artists },
+          choices: [{ value: playlist, label: playlists }, { value: artist, label: artists }, { value: track, label: tracks },
                     { value: radio, label: radio }, { value: podcast, label: podcasts }] }

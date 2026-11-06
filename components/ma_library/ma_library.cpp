@@ -19,6 +19,9 @@ static constexpr int MAX_ROWS = 12;
 static constexpr uint32_t ANSWER_MS = 15000;
 // How long a chosen row stays yellow before the list closes. The popup hears the time every 250 ms, so 350 to 600 ms.
 static constexpr uint32_t PICKED_MS = 350;
+// The favorites key's hearts, in every text font of the screen since firmware 0.36.0.
+static const char *const FULL_HEART = "♥";
+static const char *const OPEN_HEART = "♡";
 
 // The lists a tile can open: Music Assistant's media_type and the screen's word for it. A new list is a line here, a
 // choice of the option `list` in the manifest, and its word in translations/en.json (parts `screen` and `app`).
@@ -29,6 +32,7 @@ struct Kind {
 static const Kind KINDS[] = {
     {"playlist", "playlists"},
     {"artist", "artists"},
+    {"track", "tracks"},
     {"radio", "radio"},
     {"podcast", "podcasts"},
 };
@@ -72,16 +76,20 @@ class ListPopup : public tessera::Popup {
 
     // The first row: the title and the favorites key, leaving the corner to the close key.
     const int head = std::max(c.key, ui::line_height(Font::TITLE));
-    const char *favorites = plugin_->text("favorites");
-    const int chip_h = bar_h_;
-    chip_w_ = ui::text_width(favorites, Font::BODY) + ui::px(20);
+    // The favorites key: a heart as large as the close key, on its line. A screen whose font lacks the hearts gets the
+    // word on a key instead.
+    hearts_ = ui::covers(FULL_HEART, Font::HEADLINE) && ui::covers(OPEN_HEART, Font::HEADLINE);
+    const Font chip_font = hearts_ ? Font::HEADLINE : Font::BODY;
+    const int chip_h = hearts_ ? c.key : bar_h_;
+    chip_w_ = hearts_ ? c.key : ui::text_width(plugin_->text("favorites"), Font::BODY) + ui::px(20);
     chip_x_ = c.width - c.corner - chip_w_;
     chip_ = key_block(c.parent, chip_w_, chip_h);
+    if (hearts_) lv_obj_set_style_bg_opa(chip_, LV_OPA_TRANSP, 0);
     lv_obj_set_pos(chip_, chip_x_, (head - chip_h) / 2);
-    chip_text_ = ui::label(chip_, Font::BODY, theme::INK);
+    chip_text_ = ui::label(chip_, chip_font, theme::INK);
     lv_obj_set_width(chip_text_, chip_w_);
     lv_obj_set_style_text_align(chip_text_, LV_TEXT_ALIGN_CENTER, 0);
-    ui::set_text(chip_text_, favorites);
+    ui::set_text(chip_text_, hearts_ ? FULL_HEART : plugin_->text("favorites"));
     lv_obj_center(chip_text_);
 
     title_ = ui::label(c.parent, Font::TITLE, theme::INK);
@@ -322,10 +330,16 @@ class ListPopup : public tessera::Popup {
     paint_chip();
   }
 
-  // Lit while the list shows only favorites. Without a player or an id there is no list to filter.
+  // A full red heart while the list shows only favorites, an outline in the ink's colour while it shows everything (the
+  // word key: lit, or not). Without a player or an id there is no list to filter.
   void paint_chip() {
-    ui::set_fill(chip_, favorites_ ? tessera::Tone::ACCENT : tessera::Tone::NORMAL, theme::TRACK);
-    ui::set_color(chip_text_, favorites_ ? theme::ON_ACCENT : theme::INK);
+    if (hearts_) {
+      ui::set_text(chip_text_, favorites_ ? FULL_HEART : OPEN_HEART);
+      ui::set_tone(chip_text_, favorites_ ? tessera::Tone::ALERT : tessera::Tone::NORMAL, theme::INK);
+    } else {
+      ui::set_fill(chip_, favorites_ ? tessera::Tone::ACCENT : tessera::Tone::NORMAL, theme::TRACK);
+      ui::set_color(chip_text_, favorites_ ? theme::ON_ACCENT : theme::INK);
+    }
     if (can_ask()) lv_obj_clear_flag(chip_, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(chip_, LV_OBJ_FLAG_HIDDEN);
   }
@@ -343,7 +357,7 @@ class ListPopup : public tessera::Popup {
   MaLibrary *plugin_;
   ListRequest request_;
   int offset_ = 0, count_ = 0, fetched_ = 0, rows_ = 1, picked_ = -1;
-  bool more_ = false, favorites_ = true;
+  bool more_ = false, favorites_ = true, hearts_ = false;
   State state_ = State::UNSENT;
   uint32_t asked_ = 0, asked_at_ = 0, picked_at_ = 0;
   int width_ = 0, gap_ = 0, bar_h_ = 0, row_h_ = 0, rows_top_ = 0, keys_y_ = 0, key_w_ = 0, chip_x_ = 0, chip_w_ = 0;

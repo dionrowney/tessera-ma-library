@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0
+- A key can open your tracks: choose **Tracks** in its **List** option.
+- The favorites key is a heart: full and red while the list shows only favorites, an outline while it shows everything.
+
 ## 1.2.0
 - Lists open on your Music Assistant favorites. The **Favorites** key at the top of the list turns the filter off to show everything, and on again.
 
